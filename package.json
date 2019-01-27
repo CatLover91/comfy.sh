@@ -1,0 +1,13 @@
+{
+  "name": "dotfiles",
+  "version": "1.0.0",
+  "description": "muh dots",
+  "main": "index.js",
+  "repository": "https://github.com/CatLover91/dotfiles.git",
+  "author": "Nicholai <@itsnicholaifyi>",
+  "license": "GPL-V3",
+  "dependencies": {
+    "commander": "^2.19.0",
+    "handlebars": "^4.0.12"
+  }
+}

@@ -1,54 +1,63 @@
 #!/usr/bin/env node
 
-var fs = require('fs');
-var program = require('commander');
+const fs = require('fs')
+const Handlebars = require('handlebars')
+const program = require('commander')
 
-const currentConfig = {
+const defaultConfig = {
     os: process.platform,
     home: require('os').homedir(),
     delim: process.platform === 'win32' ? '\\' : '/',
-    ignore: ['config.json', 'README.md', '.gitignore', '.git']
+    ignore: ['config.json', 'README.md', '.gitignore', '.git', 'node_modules']
 }
-
-if (process.argv.length <= 2) {
-    console.log("Usage: " + __filename + " path/to/directory");
-    process.exit(-1);
+function clean(path) {
+    fs.unlinkSync(path);
 }
-
-function updateConfig(curConf, newConf) {
-
-    if(newConf.ignore)
-        curConf.ignore = curConf.ignore.concat(newConf.ignore)
-
-    return curConf
+function copy(source, output) {
+    fs.copyFile(source, output, (err) => {
+        if (err) throw err;
+        console.log('copied file: ' + source)
+    })
 }
-function loadFile(dir, config) {
-    console.log('LOAD FILE', dir, config)
+function handleFile(dir, name, config) {
+    console.log('LOAD FILE', dir, name, config)
+
+    let path;
+    if (config.output) {
+        console.log('Output override')
+        path = Handlebars.compile(config.output)(defaultConfig) + defaultConfig.delim + name
+    } else {
+        console.log('Output Home Default')
+        path = defaultConfig.home + defaultConfig.delim + dir + defaultConfig.delim + name
+    } 
+    console.log('path to operate from: ', __dirname + defaultConfig.delim + dir + defaultConfig.delim + name)
+    console.log('path to operate on: ', path)
+    
 }
 
 function loadDir(dir, config) { 
 
     fs.readdir(dir, function(err, items) {
-        console.log(items);
-        let curConfig = config
-        for (var i=0; i<items.length; i++) {
-            if(items[i] === 'config.json') {
-                curConfig = updateConfig(config, JSON.parse(fs.readFileSync(dir + '/' + items[i], 'utf8')))
-            }
-        }
-        console.log('LOAD FILES', curConfig)
-        for (var i=0; i<items.length; i++) {
-            if(curConfig.ignore.filter((ign) => ign === items[i]).length === 0) {
-                var file = dir + curConfig.delim + items[i];
-                let stats = fs.lstatSync(file)
-                console.log(file, stats)
-                if(stats.isDirectory())
-                    loadDir(file, config)
-                else
-                    loadFile(file, curConfig)
+        let curConfig = defaultConfig
+        for (let i=0; i<items.length; i++)
+            if(items[i] === 'config.json')
+                curConfig = JSON.parse(fs.readFileSync(dir + '/' + items[i], 'utf8'))
+        
+        
+        for (let i=0; i<items.length; i++) {
+            if(!curConfig.ignore || curConfig.ignore.filter((ign) => ign === items[i]).length === 0) {
+                if(defaultConfig.ignore.filter((ign) => ign === items[i]).length === 0) {
+                    let file = dir === '.' ? items[i] : dir + defaultConfig.delim + items[i];
+                    let stats = fs.lstatSync(file)
+                    //console.log(file, stats)
+                    if(stats.isDirectory())
+                        loadDir(file, config)
+                    else
+                        handleFile(dir, items[i], curConfig)
+                }
             }
         }
     });
 } 
 
-loadDir(process.argv[2], currentConfig)
+loadDir(process.argv.length <= 2 ? '.' : process.argv[2], defaultConfig)
